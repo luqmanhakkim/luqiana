@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../../config/theme.dart';
 import '../../../constants/app_strings.dart';
 import '../../../core/models/trip.dart';
+import '../application/trips_notifier.dart';
 
-class TripCard extends StatelessWidget {
+class TripCard extends ConsumerWidget {
   final Trip trip;
   final VoidCallback? onTap;
 
@@ -14,7 +16,7 @@ class TripCard extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final gradient = AppColors.tripGradients[
         trip.gradientIndex % AppColors.tripGradients.length];
 
@@ -111,10 +113,15 @@ class TripCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 4),
-                      const Icon(
-                        Icons.chevron_right_rounded,
-                        color: AppColors.textHint,
-                        size: 20,
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline_rounded),
+                        color: Colors.redAccent.withOpacity(0.7),
+                        iconSize: 22,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: () {
+                          _showDeleteDialog(context, ref, trip);
+                        },
                       ),
                     ],
                   ),
@@ -123,6 +130,29 @@ class TripCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _showDeleteDialog(BuildContext context, WidgetRef ref, Trip trip) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Trip'),
+        content: Text('Are you sure you want to delete ${trip.name}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () {
+              ref.read(tripsProvider.notifier).removeTrip(trip.id);
+              Navigator.of(context).pop();
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
   }

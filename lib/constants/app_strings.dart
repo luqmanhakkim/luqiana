@@ -35,6 +35,17 @@ class AppStrings {
 
   static const String addTrip = 'New Trip';
 
+  static const String createTripTitle = 'Create New Trip';
+  static const String tripNameLabel = 'Trip Name';
+  static const String tripNameHint = 'e.g. Summer Vacation';
+  static const String destinationLabel = 'Destination';
+  static const String destinationHint = 'e.g. Paris';
+  static const String countryLabel = 'Country';
+  static const String countryHint = 'e.g. France';
+  static const String dateRangeLabel = 'Dates';
+  static const String saveTrip = 'Save Trip';
+  static const String cancel = 'Cancel';
+
   static const String itineraryTitle = 'Itinerary';
   static const String itineraryDay = 'Day';
   static const String itineraryNoData = 'No itinerary yet';

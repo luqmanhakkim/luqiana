@@ -9,6 +9,7 @@ import '../expenses/expenses_screen.dart';
 import '../itinerary/itinerary_screen.dart';
 import '../shopping/shopping_screen.dart';
 import 'application/trips_notifier.dart';
+import 'widgets/create_trip_sheet.dart';
 import 'widgets/empty_trips_state.dart';
 import 'widgets/featured_trip_banner.dart';
 import 'widgets/quick_stats_row.dart';
@@ -109,7 +110,7 @@ class _TripsFAB extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FloatingActionButton.extended(
-      onPressed: () {},
+      onPressed: () => CreateTripSheet.show(context),
       backgroundColor: AppColors.primary,
       icon: const Icon(Icons.add_rounded, color: Colors.white),
       label: const Text(
@@ -137,10 +138,10 @@ class _TripsTab extends HookConsumerWidget {
 
     final ongoingTrips = trips.where((t) => t.status == TripStatus.ongoing);
     final ongoingTrip = ongoingTrips.isEmpty ? null : ongoingTrips.first;
-    final upcomingTrips =
-        trips.where((t) => t.status == TripStatus.upcoming).toList();
-    final pastTrips =
-        trips.where((t) => t.status == TripStatus.completed).toList();
+    final upcomingTrips = trips.where((t) => t.status == TripStatus.upcoming).toList()
+      ..sort((a, b) => a.startDate.compareTo(b.startDate));
+    final pastTrips = trips.where((t) => t.status == TripStatus.completed).toList()
+      ..sort((a, b) => b.endDate.compareTo(a.endDate));
 
     final hour = DateTime.now().hour;
     final greeting = hour < 12

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../../config/theme.dart';
 import '../../../core/models/trip.dart';
+import '../application/trips_notifier.dart';
 
-class FeaturedTripBanner extends StatelessWidget {
+class FeaturedTripBanner extends ConsumerWidget {
   final Trip trip;
   final VoidCallback? onTap;
 
@@ -13,7 +15,7 @@ class FeaturedTripBanner extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final gradient = AppColors.tripGradients[
         trip.gradientIndex % AppColors.tripGradients.length];
     final progress = (trip.dayOfTrip / trip.tripDuration).clamp(0.0, 1.0);
@@ -46,10 +48,30 @@ class FeaturedTripBanner extends StatelessWidget {
               children: [
                 _OngoingBadge(),
                 const Spacer(),
-                const Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  color: Colors.white70,
-                  size: 16,
+                PopupMenuButton<String>(
+                  icon: const Icon(
+                    Icons.more_horiz_rounded,
+                    color: Colors.white70,
+                  ),
+                  color: AppColors.surface,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  onSelected: (value) {
+                    if (value == 'delete') {
+                      _showDeleteDialog(context, ref, trip);
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete_outline_rounded, color: Colors.redAccent.shade400, size: 20),
+                          const SizedBox(width: 8),
+                          Text('Delete Trip', style: TextStyle(color: Colors.redAccent.shade400)),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -124,6 +146,29 @@ class FeaturedTripBanner extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showDeleteDialog(BuildContext context, WidgetRef ref, Trip trip) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Trip'),
+        content: Text('Are you sure you want to delete ${trip.name}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () {
+              ref.read(tripsProvider.notifier).removeTrip(trip.id);
+              Navigator.of(context).pop();
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
   }

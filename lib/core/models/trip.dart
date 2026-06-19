@@ -7,7 +7,6 @@ class Trip {
   final String country;
   final DateTime startDate;
   final DateTime endDate;
-  final TripStatus status;
   final double budget;
   final String currency;
   final int gradientIndex;
@@ -19,23 +18,52 @@ class Trip {
     required this.country,
     required this.startDate,
     required this.endDate,
-    required this.status,
     this.budget = 0,
     this.currency = 'MYR',
     this.gradientIndex = 0,
   });
 
-  int get daysUntilTrip => startDate.difference(DateTime.now()).inDays;
+  TripStatus get status {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final start = DateTime(startDate.year, startDate.month, startDate.day);
+    final end = DateTime(endDate.year, endDate.month, endDate.day);
 
-  int get daysLeft => endDate.difference(DateTime.now()).inDays;
+    if (today.isBefore(start)) {
+      return TripStatus.upcoming;
+    } else if (today.isAfter(end)) {
+      return TripStatus.completed;
+    } else {
+      return TripStatus.ongoing;
+    }
+  }
+
+  int get daysUntilTrip {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final start = DateTime(startDate.year, startDate.month, startDate.day);
+    return start.difference(today).inDays;
+  }
+
+  int get daysLeft {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final end = DateTime(endDate.year, endDate.month, endDate.day);
+    return end.difference(today).inDays;
+  }
 
   int get tripDuration {
-    final days = endDate.difference(startDate).inDays + 1;
+    final start = DateTime(startDate.year, startDate.month, startDate.day);
+    final end = DateTime(endDate.year, endDate.month, endDate.day);
+    final days = end.difference(start).inDays + 1;
     return days < 1 ? 1 : days;
   }
 
   int get dayOfTrip {
-    final day = DateTime.now().difference(startDate).inDays + 1;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final start = DateTime(startDate.year, startDate.month, startDate.day);
+    final day = today.difference(start).inDays + 1;
     return day < 1 ? 1 : day;
   }
 
@@ -64,7 +92,6 @@ final List<Trip> sampleTrips = [
     country: 'Japan',
     startDate: DateTime(2026, 6, 10),
     endDate: DateTime(2026, 6, 17),
-    status: TripStatus.ongoing,
     budget: 5000,
     currency: 'MYR',
     gradientIndex: 0,
@@ -76,7 +103,6 @@ final List<Trip> sampleTrips = [
     country: 'France',
     startDate: DateTime(2026, 8, 1),
     endDate: DateTime(2026, 8, 21),
-    status: TripStatus.upcoming,
     budget: 12000,
     currency: 'MYR',
     gradientIndex: 3,
@@ -88,7 +114,6 @@ final List<Trip> sampleTrips = [
     country: 'Indonesia',
     startDate: DateTime(2026, 3, 1),
     endDate: DateTime(2026, 3, 7),
-    status: TripStatus.completed,
     budget: 3000,
     currency: 'MYR',
     gradientIndex: 1,
@@ -100,7 +125,6 @@ final List<Trip> sampleTrips = [
     country: 'UK',
     startDate: DateTime(2025, 12, 20),
     endDate: DateTime(2025, 12, 27),
-    status: TripStatus.completed,
     budget: 8000,
     currency: 'MYR',
     gradientIndex: 4,

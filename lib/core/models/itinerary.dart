@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 enum ActivityCategory { food, transport, hotel, sightseeing, shopping, other }
 
 class ItineraryActivity {
@@ -30,6 +32,28 @@ class ItineraryActivity {
       isDone: isDone ?? this.isDone,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'time': time,
+        'title': title,
+        'location': location,
+        'category': category.name,
+        'notes': notes,
+        'isDone': isDone,
+      };
+
+  factory ItineraryActivity.fromJson(Map<String, dynamic> json) =>
+      ItineraryActivity(
+        id: json['id'] as String,
+        time: json['time'] as String,
+        title: json['title'] as String,
+        location: json['location'] as String,
+        category: ActivityCategory.values
+            .firstWhere((e) => e.name == json['category']),
+        notes: json['notes'] as String?,
+        isDone: json['isDone'] as bool,
+      );
 }
 
 class ItineraryDay {
@@ -50,6 +74,25 @@ class ItineraryDay {
       activities: activities ?? this.activities,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'tripId': tripId,
+        'date': date.toIso8601String(),
+        'activities': activities.map((a) => a.toJson()).toList(),
+      };
+
+  factory ItineraryDay.fromJson(Map<String, dynamic> json) => ItineraryDay(
+        tripId: json['tripId'] as String,
+        date: DateTime.parse(json['date'] as String),
+        activities: (json['activities'] as List)
+            .map((a) => ItineraryActivity.fromJson(a as Map<String, dynamic>))
+            .toList(),
+      );
+
+  String toJsonString() => jsonEncode(toJson());
+
+  factory ItineraryDay.fromJsonString(String raw) =>
+      ItineraryDay.fromJson(jsonDecode(raw) as Map<String, dynamic>);
 }
 
 List<ItineraryDay> get sampleItinerary => [

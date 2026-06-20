@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
@@ -11,28 +12,45 @@ import '../../../core/models/trip.dart';
 import '../application/trips_notifier.dart';
 
 class CreateTripSheet extends HookConsumerWidget {
-  const CreateTripSheet({super.key});
+  final Trip? existingTrip;
 
-  static void show(BuildContext context) {
+  const CreateTripSheet({super.key, this.existingTrip});
+
+  bool get _isEditing => existingTrip != null;
+
+  static void show(BuildContext context, {Trip? existingTrip}) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const CreateTripSheet(),
+      builder: (context) => CreateTripSheet(existingTrip: existingTrip),
     );
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final nameController = useTextEditingController();
-    final destController = useTextEditingController();
-    final countryController = useTextEditingController();
+    // Pre-resolve the existing country so we can pass its flag string
+    final initialCountry = existingTrip != null
+        ? availableCountries
+            .where((c) => c.name == existingTrip!.country)
+            .firstOrNull
+        : null;
+    final initialCountryText = initialCountry != null
+        ? '${initialCountry.flag} ${initialCountry.name}'
+        : (existingTrip?.country ?? '');
 
-    final selectedCountry = useState<CountryData?>(null);
+    final nameController =
+        useTextEditingController(text: existingTrip?.name ?? '');
+    final destController =
+        useTextEditingController(text: existingTrip?.destination ?? '');
+    final countryController =
+        useTextEditingController(text: initialCountryText);
 
-    final startDate = useState<DateTime?>(null);
-    final endDate = useState<DateTime?>(null);
+    final selectedCountry = useState<CountryData?>(initialCountry);
+
+    final startDate = useState<DateTime?>(existingTrip?.startDate);
+    final endDate = useState<DateTime?>(existingTrip?.endDate);
 
     final formKey = useMemoized(() => GlobalKey<FormState>());
 
@@ -97,11 +115,15 @@ class CreateTripSheet extends HookConsumerWidget {
                     itemBuilder: (context, index) {
                       final country = availableCountries[index];
                       return ListTile(
-                        leading: Text(country.flag, style: const TextStyle(fontSize: 24)),
+                        leading: Text(
+                          country.flag,
+                          style: const TextStyle(fontSize: 24),
+                        ),
                         title: Text(country.name),
                         onTap: () {
                           selectedCountry.value = country;
-                          countryController.text = '${country.flag} ${country.name}';
+                          countryController.text =
+                              '${country.flag} ${country.name}';
                           // Reset destination if country changes
                           destController.text = '';
                           Navigator.pop(context);
@@ -117,84 +139,42 @@ class CreateTripSheet extends HookConsumerWidget {
       );
     }
 
-    void selectDestination() {
-      if (selectedCountry.value == null) {
+    void submit() {
+      if (!formKey.currentState!.validate()) return;
+      if (startDate.value == null || endDate.value == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select a country first')),
+          const SnackBar(content: Text('Please select dates')),
         );
         return;
       }
 
-      final cities = selectedCountry.value!.cities;
+      final name = nameController.text.trim().toUpperCase();
+      final destination = destController.text.trim();
+      final country =
+          selectedCountry.value?.name ?? countryController.text.trim();
 
-      showModalBottomSheet(
-        context: context,
-        backgroundColor: AppColors.background,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        builder: (context) {
-          return SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Text(
-                    'Select Destination',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ),
-                Flexible(
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: cities.length,
-                    itemBuilder: (context, index) {
-                      final city = cities[index];
-                      return ListTile(
-                        leading: const Icon(Icons.location_city_rounded, color: AppColors.primary),
-                        title: Text(city),
-                        onTap: () {
-                          destController.text = city;
-                          Navigator.pop(context);
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      );
-    }
-
-    void submit() {
-      if (formKey.currentState!.validate()) {
-        if (startDate.value == null || endDate.value == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Please select dates')),
-          );
-          return;
-        }
-
+      if (_isEditing) {
+        final updated = existingTrip!.copyWith(
+          name: name,
+          destination: destination,
+          country: country,
+          startDate: startDate.value,
+          endDate: endDate.value,
+        );
+        ref.read(tripsProvider.notifier).updateTrip(updated);
+      } else {
         final newTrip = Trip(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
-          name: nameController.text.trim(),
-          destination: destController.text.trim(),
-          country: selectedCountry.value?.name ?? countryController.text.trim(),
+          name: name,
+          destination: destination,
+          country: country,
           startDate: startDate.value!,
           endDate: endDate.value!,
           gradientIndex: Random().nextInt(AppColors.tripGradients.length),
         );
-
         ref.read(tripsProvider.notifier).addTrip(newTrip);
-        Navigator.of(context).pop();
       }
+      Navigator.of(context).pop();
     }
 
     return Container(
@@ -224,9 +204,9 @@ class CreateTripSheet extends HookConsumerWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    AppStrings.createTripTitle,
-                    style: TextStyle(
+                  Text(
+                    _isEditing ? 'Edit Trip' : AppStrings.createTripTitle,
+                    style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: AppColors.textPrimary,
@@ -234,7 +214,10 @@ class CreateTripSheet extends HookConsumerWidget {
                   ),
                   IconButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: AppColors.textSecondary,
+                    ),
                     style: IconButton.styleFrom(
                       backgroundColor: AppColors.surface,
                       padding: EdgeInsets.zero,
@@ -262,6 +245,7 @@ class CreateTripSheet extends HookConsumerWidget {
                         controller: nameController,
                         validator: (v) => v!.isEmpty ? 'Required' : null,
                         icon: Icons.title_rounded,
+                        forceUppercase: true,
                       ),
                       const SizedBox(height: 16),
                       Row(
@@ -285,8 +269,8 @@ class CreateTripSheet extends HookConsumerWidget {
                               controller: destController,
                               validator: (v) => v!.isEmpty ? 'Required' : null,
                               icon: Icons.location_city_rounded,
-                              readOnly: true,
-                              onTap: selectDestination,
+                              readOnly: false,
+                              forceUppercase: true,
                             ),
                           ),
                         ],
@@ -305,7 +289,10 @@ class CreateTripSheet extends HookConsumerWidget {
                         onTap: pickDateRange,
                         borderRadius: BorderRadius.circular(12),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.surface,
                             borderRadius: BorderRadius.circular(12),
@@ -313,11 +300,16 @@ class CreateTripSheet extends HookConsumerWidget {
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.calendar_month_rounded, color: AppColors.primary, size: 20),
+                              const Icon(
+                                Icons.calendar_month_rounded,
+                                color: AppColors.primary,
+                                size: 20,
+                              ),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
-                                  startDate.value != null && endDate.value != null
+                                  startDate.value != null &&
+                                          endDate.value != null
                                       ? '${_formatDate(startDate.value!)} - ${_formatDate(endDate.value!)}'
                                       : 'Select dates',
                                   style: TextStyle(
@@ -337,7 +329,10 @@ class CreateTripSheet extends HookConsumerWidget {
                           padding: EdgeInsets.only(top: 6, left: 12),
                           child: Text(
                             '* Required',
-                            style: TextStyle(color: Colors.redAccent, fontSize: 12),
+                            style: TextStyle(
+                              color: Colors.redAccent,
+                              fontSize: 12,
+                            ),
                           ),
                         ),
                       const SizedBox(height: 32),
@@ -352,9 +347,9 @@ class CreateTripSheet extends HookConsumerWidget {
                           ),
                           elevation: 0,
                         ),
-                        child: const Text(
-                          AppStrings.saveTrip,
-                          style: TextStyle(
+                        child: Text(
+                          _isEditing ? 'Update Trip' : AppStrings.saveTrip,
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
@@ -373,7 +368,20 @@ class CreateTripSheet extends HookConsumerWidget {
 }
 
 String _formatDate(DateTime date) {
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
   return '${months[date.month - 1]} ${date.day}, ${date.year}';
 }
 
@@ -384,6 +392,7 @@ class _InputField extends StatelessWidget {
   final String? Function(String?)? validator;
   final IconData icon;
   final bool readOnly;
+  final bool forceUppercase;
   final VoidCallback? onTap;
 
   const _InputField({
@@ -393,6 +402,7 @@ class _InputField extends StatelessWidget {
     this.validator,
     required this.icon,
     this.readOnly = false,
+    this.forceUppercase = false,
     this.onTap,
   });
 
@@ -415,13 +425,29 @@ class _InputField extends StatelessWidget {
           validator: validator,
           readOnly: readOnly,
           onTap: onTap,
+          textCapitalization: forceUppercase
+              ? TextCapitalization.characters
+              : TextCapitalization.none,
+          inputFormatters: forceUppercase
+              ? [
+                  TextInputFormatter.withFunction((oldValue, newValue) {
+                    return TextEditingValue(
+                      text: newValue.text.toUpperCase(),
+                      selection: newValue.selection,
+                    );
+                  }),
+                ]
+              : null,
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: const TextStyle(color: AppColors.textHint),
             prefixIcon: Icon(icon, color: AppColors.textSecondary, size: 20),
             filled: true,
             fillColor: AppColors.surface,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: AppColors.divider),

@@ -4,6 +4,7 @@ import '../../../config/theme.dart';
 import '../../../constants/app_strings.dart';
 import '../../../core/models/trip.dart';
 import '../application/trips_notifier.dart';
+import 'create_trip_sheet.dart';
 
 class TripCard extends ConsumerWidget {
   final Trip trip;
@@ -114,9 +115,19 @@ class TripCard extends ConsumerWidget {
                       ),
                       const SizedBox(width: 4),
                       IconButton(
+                        icon: const Icon(Icons.edit_outlined),
+                        color: AppColors.primary.withOpacity(0.7),
+                        iconSize: 20,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: () =>
+                            CreateTripSheet.show(context, existingTrip: trip),
+                      ),
+                      const SizedBox(width: 4),
+                      IconButton(
                         icon: const Icon(Icons.delete_outline_rounded),
                         color: Colors.redAccent.withOpacity(0.7),
-                        iconSize: 22,
+                        iconSize: 20,
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                         onPressed: () {

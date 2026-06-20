@@ -8,7 +8,7 @@ class AppStrings {
   static const String greetingEvening = 'Good Evening';
   static const String greetingNight = 'Good Night';
   static const String greetingSubtitle = 'Ready for your next adventure?';
-  static const String userName = 'Luqman';
+  static const String userName = 'Luqliana';
 
   static const String navHome = 'Home';
   static const String navExpenses = 'Expenses';

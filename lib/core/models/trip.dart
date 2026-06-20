@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 enum TripStatus { upcoming, ongoing, completed }
 
 class Trip {
@@ -22,6 +24,56 @@ class Trip {
     this.currency = 'MYR',
     this.gradientIndex = 0,
   });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'destination': destination,
+        'country': country,
+        'startDate': startDate.toIso8601String(),
+        'endDate': endDate.toIso8601String(),
+        'budget': budget,
+        'currency': currency,
+        'gradientIndex': gradientIndex,
+      };
+
+  factory Trip.fromJson(Map<String, dynamic> json) => Trip(
+        id: json['id'] as String,
+        name: json['name'] as String,
+        destination: json['destination'] as String,
+        country: json['country'] as String,
+        startDate: DateTime.parse(json['startDate'] as String),
+        endDate: DateTime.parse(json['endDate'] as String),
+        budget: (json['budget'] as num).toDouble(),
+        currency: json['currency'] as String,
+        gradientIndex: json['gradientIndex'] as int,
+      );
+
+  Trip copyWith({
+    String? name,
+    String? destination,
+    String? country,
+    DateTime? startDate,
+    DateTime? endDate,
+    double? budget,
+    String? currency,
+  }) =>
+      Trip(
+        id: id,
+        name: name ?? this.name,
+        destination: destination ?? this.destination,
+        country: country ?? this.country,
+        startDate: startDate ?? this.startDate,
+        endDate: endDate ?? this.endDate,
+        budget: budget ?? this.budget,
+        currency: currency ?? this.currency,
+        gradientIndex: gradientIndex,
+      );
+
+  String toJsonString() => jsonEncode(toJson());
+
+  factory Trip.fromJsonString(String raw) =>
+      Trip.fromJson(jsonDecode(raw) as Map<String, dynamic>);
 
   TripStatus get status {
     final now = DateTime.now();

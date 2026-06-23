@@ -6,6 +6,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../config/theme.dart';
 import '../../core/models/shopping.dart';
 import '../../core/models/trip.dart';
+import '../../core/widgets/trip_selector.dart';
 import '../home/application/trips_notifier.dart';
 import 'application/shopping_notifier.dart';
 
@@ -79,7 +80,7 @@ class ShoppingScreen extends HookConsumerWidget {
           expandedHeight: 140,
           pinned: true,
           stretch: true,
-          backgroundColor: AppColors.primaryDark,
+          backgroundColor: context.appPrimaryDark,
           actions: [
             IconButton(
               icon: const Icon(Icons.add_rounded, color: Colors.white),
@@ -90,9 +91,9 @@ class ShoppingScreen extends HookConsumerWidget {
           flexibleSpace: FlexibleSpaceBar(
             collapseMode: CollapseMode.parallax,
             background: Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [AppColors.primaryDark, AppColors.primary],
+                  colors: [context.appPrimaryDark, context.appPrimary],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -143,7 +144,7 @@ class ShoppingScreen extends HookConsumerWidget {
         // ── Trip selector ────────────────────────────────────────────────────
         if (trips.length > 1)
           SliverToBoxAdapter(
-            child: _TripSelectorRow(
+            child: TripSelectorButton(
               trips: trips,
               selectedIndex: selectedTripIndex.value,
               onSelected: (i) => selectedTripIndex.value = i,
@@ -189,7 +190,7 @@ class ShoppingScreen extends HookConsumerWidget {
                           fontSize: 13,
                           color: total == 0
                               ? AppColors.textHint
-                              : AppColors.primary,
+                              : context.appPrimary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -204,7 +205,7 @@ class ShoppingScreen extends HookConsumerWidget {
                       valueColor: AlwaysStoppedAnimation<Color>(
                         progress == 1.0 && total > 0
                             ? AppColors.success
-                            : AppColors.primary,
+                            : context.appPrimary,
                       ),
                       minHeight: 8,
                     ),
@@ -351,100 +352,6 @@ class _SummaryChip extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Trip selector row
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _TripSelectorRow extends StatelessWidget {
-  final List<Trip> trips;
-  final int selectedIndex;
-  final ValueChanged<int> onSelected;
-
-  const _TripSelectorRow({
-    required this.trips,
-    required this.selectedIndex,
-    required this.onSelected,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: AppColors.surface,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: List.generate(trips.length, (index) {
-            final t = trips[index];
-            final isSelected = index == selectedIndex;
-            final dotColor = AppColors.tripGradients[
-                t.gradientIndex % AppColors.tripGradients.length][0];
-
-            return GestureDetector(
-              onTap: () => onSelected(index),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                margin: const EdgeInsets.only(right: 10),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? AppColors.primary
-                      : AppColors.surfaceVariant,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isSelected ? AppColors.primary : AppColors.divider,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: isSelected ? Colors.white70 : dotColor,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          t.name,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: isSelected
-                                ? Colors.white
-                                : AppColors.textPrimary,
-                          ),
-                        ),
-                        Text(
-                          t.destination,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: isSelected
-                                ? Colors.white70
-                                : AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }),
-        ),
-      ),
-    );
-  }
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Category header
 // ─────────────────────────────────────────────────────────────────────────────
@@ -694,7 +601,7 @@ class _ShoppingItemTile extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: item.isPurchased
                               ? AppColors.surfaceVariant
-                              : AppColors.primary.withOpacity(0.1),
+                              : Theme.of(context).colorScheme.primary.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -704,7 +611,7 @@ class _ShoppingItemTile extends StatelessWidget {
                             fontWeight: FontWeight.w700,
                             color: item.isPurchased
                                 ? AppColors.textHint
-                                : AppColors.primary,
+                                : Theme.of(context).colorScheme.primary,
                           ),
                         ),
                       ),
@@ -739,13 +646,13 @@ class _EmptyShopping extends StatelessWidget {
               width: 96,
               height: 96,
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.08),
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.shopping_bag_outlined,
                 size: 44,
-                color: AppColors.primary,
+                color: Theme.of(context).colorScheme.primary,
               ),
             ),
             const SizedBox(height: 24),
@@ -871,6 +778,7 @@ class _AddItemSheet extends HookConsumerWidget {
                       decoration: _fieldDecoration(
                         'Item name (e.g. Sneakers, Matcha Kit Kat…)',
                         Icons.shopping_bag_outlined,
+                        context.appPrimary,
                       ),
                       validator: (v) =>
                           (v == null || v.trim().isEmpty) ? 'Required' : null,
@@ -961,6 +869,7 @@ class _AddItemSheet extends HookConsumerWidget {
                                 decoration: _fieldDecoration(
                                   '0.00',
                                   Icons.attach_money_rounded,
+                                  context.appPrimary,
                                 ),
                               ),
                             ],
@@ -993,7 +902,7 @@ class _AddItemSheet extends HookConsumerWidget {
                       child: ElevatedButton(
                         onPressed: submit,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
+                          backgroundColor: context.appPrimary,
                           foregroundColor: Colors.white,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
@@ -1019,7 +928,8 @@ class _AddItemSheet extends HookConsumerWidget {
     );
   }
 
-  static InputDecoration _fieldDecoration(String hint, IconData icon) {
+  static InputDecoration _fieldDecoration(
+      String hint, IconData icon, Color primary) {
     return InputDecoration(
       hintText: hint,
       hintStyle: const TextStyle(color: AppColors.textHint, fontSize: 13),
@@ -1038,7 +948,7 @@ class _AddItemSheet extends HookConsumerWidget {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.primary, width: 2),
+        borderSide: BorderSide(color: primary, width: 2),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -1069,7 +979,7 @@ class _StepperButton extends StatelessWidget {
         child: SizedBox(
           width: 44,
           height: 52,
-          child: Icon(icon, size: 20, color: AppColors.primary),
+          child: Icon(icon, size: 20, color: context.appPrimary),
         ),
       ),
     );

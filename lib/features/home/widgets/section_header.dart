@@ -31,11 +31,11 @@ class SectionHeader extends StatelessWidget {
         if (showSeeAll)
           GestureDetector(
             onTap: onSeeAll,
-            child: const Text(
+            child: Text(
               AppStrings.seeAll,
               style: TextStyle(
                 fontSize: 13,
-                color: AppColors.primary,
+                color: Theme.of(context).colorScheme.primary,
                 fontWeight: FontWeight.w600,
               ),
             ),

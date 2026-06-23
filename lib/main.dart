@@ -16,6 +16,8 @@ void main() async {
   await Hive.openBox<String>('itinerary');
   await Hive.openBox<String>('checklist');
   await Hive.openBox<String>('shopping');
+  await Hive.openBox<String>('expenses');
+  await Hive.openBox('settings');
 
   runApp(const ProviderScope(child: LuqianaApp()));
 }

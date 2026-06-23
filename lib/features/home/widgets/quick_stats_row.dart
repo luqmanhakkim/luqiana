@@ -22,7 +22,7 @@ class QuickStatsRow extends StatelessWidget {
           value: totalTrips.toString(),
           label: AppStrings.statsTotalTrips,
           icon: Icons.flight_takeoff_rounded,
-          color: AppColors.primary,
+          color: Theme.of(context).colorScheme.primary,
         ),
         const SizedBox(width: 10),
         _StatCard(

@@ -67,8 +67,8 @@ class CreateTripSheet extends HookConsumerWidget {
         builder: (context, child) {
           return Theme(
             data: Theme.of(context).copyWith(
-              colorScheme: const ColorScheme.light(
-                primary: AppColors.primary,
+              colorScheme: ColorScheme.light(
+                primary: Theme.of(context).colorScheme.primary,
                 onPrimary: Colors.white,
                 surface: AppColors.surface,
                 onSurface: AppColors.textPrimary,
@@ -300,9 +300,9 @@ class CreateTripSheet extends HookConsumerWidget {
                           ),
                           child: Row(
                             children: [
-                              const Icon(
+                              Icon(
                                 Icons.calendar_month_rounded,
-                                color: AppColors.primary,
+                                color: Theme.of(context).colorScheme.primary,
                                 size: 20,
                               ),
                               const SizedBox(width: 12),
@@ -339,7 +339,7 @@ class CreateTripSheet extends HookConsumerWidget {
                       ElevatedButton(
                         onPressed: submit,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
+                          backgroundColor: Theme.of(context).colorScheme.primary,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
@@ -458,7 +458,7 @@ class _InputField extends StatelessWidget {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.primary, width: 2),
+              borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 2),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),

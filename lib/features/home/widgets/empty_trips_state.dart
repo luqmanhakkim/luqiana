@@ -15,13 +15,13 @@ class EmptyTripsState extends StatelessWidget {
             width: 96,
             height: 96,
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.08),
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
+            child: Icon(
               Icons.flight_takeoff_rounded,
               size: 44,
-              color: AppColors.primary,
+              color: Theme.of(context).colorScheme.primary,
             ),
           ),
           const SizedBox(height: 24),

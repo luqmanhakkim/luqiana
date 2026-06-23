@@ -116,7 +116,7 @@ class TripCard extends ConsumerWidget {
                       const SizedBox(width: 4),
                       IconButton(
                         icon: const Icon(Icons.edit_outlined),
-                        color: AppColors.primary.withOpacity(0.7),
+                        color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
                         iconSize: 20,
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
@@ -232,8 +232,8 @@ class _StatusBadge extends StatelessWidget {
 
     switch (status) {
       case TripStatus.upcoming:
-        bg = AppColors.primary.withOpacity(0.1);
-        fg = AppColors.primary;
+        bg = Theme.of(context).colorScheme.primary.withOpacity(0.1);
+        fg = Theme.of(context).colorScheme.primary;
         label = AppStrings.statusUpcoming;
         break;
       case TripStatus.ongoing:

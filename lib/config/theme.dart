@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Static brand colors (non-primary — these never change)
+// ─────────────────────────────────────────────────────────────────────────────
+
 class AppColors {
   AppColors._();
 
-  static const Color primary = Color(0xFF1B6CA8);
-  static const Color primaryDark = Color(0xFF0D3B6E);
-  static const Color primaryLight = Color(0xFF4A9FD4);
   static const Color secondary = Color(0xFFF4A261);
 
   static const Color background = Color(0xFFF5F7FA);
@@ -31,24 +32,59 @@ class AppColors {
   ];
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Theme-aware color helpers (accessed via BuildContext extension)
+// ─────────────────────────────────────────────────────────────────────────────
+
+Color _darken(Color color, [double amount = 0.22]) {
+  final hsl = HSLColor.fromColor(color);
+  return hsl
+      .withLightness((hsl.lightness - amount).clamp(0.0, 1.0))
+      .toColor();
+}
+
+Color _lighten(Color color, [double amount = 0.15]) {
+  final hsl = HSLColor.fromColor(color);
+  return hsl
+      .withLightness((hsl.lightness + amount).clamp(0.0, 1.0))
+      .toColor();
+}
+
+extension AppThemeColors on BuildContext {
+  /// The current primary brand color (from ThemeData.colorScheme).
+  Color get appPrimary => Theme.of(this).colorScheme.primary;
+
+  /// A darkened variant of the primary color (for gradient starts, app bars).
+  Color get appPrimaryDark => _darken(Theme.of(this).colorScheme.primary);
+
+  /// A lightened variant of the primary color (for gradient ends, highlights).
+  Color get appPrimaryLight => _lighten(Theme.of(this).colorScheme.primary);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Dynamic theme factory
+// ─────────────────────────────────────────────────────────────────────────────
+
 class AppTheme {
   AppTheme._();
 
-  static ThemeData get light {
+  static const Color _defaultPrimary = Color(0xFF1B6CA8);
+
+  static ThemeData light([Color primary = _defaultPrimary]) {
     return ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: AppColors.primary,
+        seedColor: primary,
         brightness: Brightness.light,
-      ),
+      ).copyWith(primary: primary),
       scaffoldBackgroundColor: AppColors.background,
-      appBarTheme: const AppBarTheme(
-        backgroundColor: AppColors.primary,
+      appBarTheme: AppBarTheme(
+        backgroundColor: primary,
         elevation: 0,
         scrolledUnderElevation: 0,
-        iconTheme: IconThemeData(color: Colors.white),
-        actionsIconTheme: IconThemeData(color: Colors.white),
-        systemOverlayStyle: SystemUiOverlayStyle(
+        iconTheme: const IconThemeData(color: Colors.white),
+        actionsIconTheme: const IconThemeData(color: Colors.white),
+        systemOverlayStyle: const SystemUiOverlayStyle(
           statusBarColor: Colors.transparent,
           statusBarIconBrightness: Brightness.light,
           statusBarBrightness: Brightness.dark,
@@ -61,8 +97,8 @@ class AppTheme {
           borderRadius: BorderRadius.circular(16),
         ),
       ),
-      floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: AppColors.primary,
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: primary,
         foregroundColor: Colors.white,
         elevation: 6,
       ),

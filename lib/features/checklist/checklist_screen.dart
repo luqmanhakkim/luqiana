@@ -5,6 +5,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../config/theme.dart';
 import '../../core/models/checklist.dart';
 import '../../core/models/trip.dart';
+import '../../core/widgets/trip_selector.dart';
 import '../home/application/trips_notifier.dart';
 import 'application/checklist_notifier.dart';
 
@@ -68,7 +69,7 @@ class ChecklistScreen extends HookConsumerWidget {
           expandedHeight: 140,
           pinned: true,
           stretch: true,
-          backgroundColor: AppColors.primaryDark,
+          backgroundColor: context.appPrimaryDark,
           actions: [
             IconButton(
               icon: const Icon(Icons.add_rounded, color: Colors.white),
@@ -79,9 +80,9 @@ class ChecklistScreen extends HookConsumerWidget {
           flexibleSpace: FlexibleSpaceBar(
             collapseMode: CollapseMode.parallax,
             background: Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [AppColors.primaryDark, AppColors.primary],
+                  colors: [context.appPrimaryDark, context.appPrimary],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -132,7 +133,7 @@ class ChecklistScreen extends HookConsumerWidget {
         // ── Trip selector (multi-trip) ───────────────────────────────────────
         if (trips.length > 1)
           SliverToBoxAdapter(
-            child: _TripSelectorRow(
+            child: TripSelectorButton(
               trips: trips,
               selectedIndex: selectedTripIndex.value,
               onSelected: (i) => selectedTripIndex.value = i,
@@ -178,7 +179,7 @@ class ChecklistScreen extends HookConsumerWidget {
                           fontSize: 13,
                           color: total == 0
                               ? AppColors.textHint
-                              : AppColors.primary,
+                              : context.appPrimary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -193,7 +194,7 @@ class ChecklistScreen extends HookConsumerWidget {
                       valueColor: AlwaysStoppedAnimation<Color>(
                         progress == 1.0 && total > 0
                             ? AppColors.success
-                            : AppColors.primary,
+                            : context.appPrimary,
                       ),
                       minHeight: 8,
                     ),
@@ -259,102 +260,6 @@ class ChecklistScreen extends HookConsumerWidget {
 
         const SliverToBoxAdapter(child: SizedBox(height: 100)),
       ],
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Trip selector row — shown when the user has more than one trip
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _TripSelectorRow extends StatelessWidget {
-  final List<Trip> trips;
-  final int selectedIndex;
-  final ValueChanged<int> onSelected;
-
-  const _TripSelectorRow({
-    required this.trips,
-    required this.selectedIndex,
-    required this.onSelected,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: AppColors.surface,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: List.generate(trips.length, (index) {
-            final t = trips[index];
-            final isSelected = index == selectedIndex;
-            final dotColor = AppColors
-                .tripGradients[t.gradientIndex % AppColors.tripGradients.length]
-                    [0];
-
-            return GestureDetector(
-              onTap: () => onSelected(index),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                margin: const EdgeInsets.only(right: 10),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? AppColors.primary
-                      : AppColors.surfaceVariant,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isSelected ? AppColors.primary : AppColors.divider,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: isSelected ? Colors.white70 : dotColor,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          t.name,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: isSelected
-                                ? Colors.white
-                                : AppColors.textPrimary,
-                          ),
-                        ),
-                        Text(
-                          t.destination,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: isSelected
-                                ? Colors.white70
-                                : AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }),
-        ),
-      ),
     );
   }
 }
@@ -541,12 +446,12 @@ class _ChecklistItemTile extends StatelessWidget {
                       height: 24,
                       decoration: BoxDecoration(
                         color: item.isChecked
-                            ? AppColors.primary
+                            ? Theme.of(context).colorScheme.primary
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
                           color: item.isChecked
-                              ? AppColors.primary
+                              ? Theme.of(context).colorScheme.primary
                               : AppColors.divider,
                           width: 2,
                         ),
@@ -605,15 +510,15 @@ class _EmptyChecklist extends StatelessWidget {
             Container(
               width: 96,
               height: 96,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.08),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.checklist_rounded,
-                size: 44,
-                color: AppColors.primary,
-              ),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.checklist_rounded,
+              size: 44,
+              color: Theme.of(context).colorScheme.primary,
+            ),
             ),
             const SizedBox(height: 24),
             const Text(
@@ -758,8 +663,8 @@ class _AddItemSheet extends HookConsumerWidget {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: AppColors.primary,
+                          borderSide: BorderSide(
+                            color: context.appPrimary,
                             width: 2,
                           ),
                         ),
@@ -795,7 +700,7 @@ class _AddItemSheet extends HookConsumerWidget {
                       child: ElevatedButton(
                         onPressed: submit,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
+                          backgroundColor: context.appPrimary,
                           foregroundColor: Colors.white,
                           elevation: 0,
                           shape: RoundedRectangleBorder(

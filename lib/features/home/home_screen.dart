@@ -4,6 +4,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import '../../config/theme.dart';
 import '../../constants/app_strings.dart';
 import '../../core/models/trip.dart';
+import '../../core/providers/theme_provider.dart';
 import '../checklist/checklist_screen.dart';
 import '../expenses/expenses_screen.dart';
 import '../itinerary/itinerary_screen.dart';
@@ -44,9 +45,9 @@ class HomeScreen extends HookConsumerWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
+// ─────────────────────────────────────────────────────────────────────────────
 // Bottom nav widget
-// ---------------------------------------------------------------------------
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _BottomNav extends StatelessWidget {
   final int currentIndex;
@@ -60,7 +61,7 @@ class _BottomNav extends StatelessWidget {
       currentIndex: currentIndex,
       onTap: onTap,
       backgroundColor: AppColors.surface,
-      selectedItemColor: AppColors.primary,
+      selectedItemColor: context.appPrimary,
       unselectedItemColor: AppColors.textHint,
       type: BottomNavigationBarType.fixed,
       elevation: 12,
@@ -100,9 +101,9 @@ class _BottomNav extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
+// ─────────────────────────────────────────────────────────────────────────────
 // FAB for trips tab
-// ---------------------------------------------------------------------------
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _TripsFAB extends StatelessWidget {
   const _TripsFAB();
@@ -111,7 +112,7 @@ class _TripsFAB extends StatelessWidget {
   Widget build(BuildContext context) {
     return FloatingActionButton.extended(
       onPressed: () => CreateTripSheet.show(context),
-      backgroundColor: AppColors.primary,
+      backgroundColor: context.appPrimary,
       icon: const Icon(Icons.add_rounded, color: Colors.white),
       label: const Text(
         AppStrings.addTrip,
@@ -125,9 +126,9 @@ class _TripsFAB extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Trips tab — converts StatefulWidget to HookConsumerWidget
-// ---------------------------------------------------------------------------
+// ─────────────────────────────────────────────────────────────────────────────
+// Trips tab
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _TripsTab extends HookConsumerWidget {
   const _TripsTab();
@@ -138,19 +139,32 @@ class _TripsTab extends HookConsumerWidget {
 
     final ongoingTrips = trips.where((t) => t.status == TripStatus.ongoing);
     final ongoingTrip = ongoingTrips.isEmpty ? null : ongoingTrips.first;
-    final upcomingTrips = trips.where((t) => t.status == TripStatus.upcoming).toList()
+    final upcomingTrips = trips
+        .where((t) => t.status == TripStatus.upcoming)
+        .toList()
       ..sort((a, b) => a.startDate.compareTo(b.startDate));
-    final pastTrips = trips.where((t) => t.status == TripStatus.completed).toList()
+    final pastTrips = trips
+        .where((t) => t.status == TripStatus.completed)
+        .toList()
       ..sort((a, b) => b.endDate.compareTo(a.endDate));
 
     final hour = DateTime.now().hour;
     final greeting = hour < 12
         ? AppStrings.greetingMorning
         : hour < 17
-        ? AppStrings.greetingAfternoon
-        : hour < 21
-        ? AppStrings.greetingEvening
-        : AppStrings.greetingNight;
+            ? AppStrings.greetingAfternoon
+            : hour < 21
+                ? AppStrings.greetingEvening
+                : AppStrings.greetingNight;
+
+    void showThemePicker() {
+      showModalBottomSheet(
+        context: context,
+        useSafeArea: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => const _ThemePickerSheet(),
+      );
+    }
 
     return CustomScrollView(
       physics: const BouncingScrollPhysics(),
@@ -159,14 +173,16 @@ class _TripsTab extends HookConsumerWidget {
           expandedHeight: 200,
           pinned: true,
           stretch: true,
-          backgroundColor: AppColors.primaryDark,
+          backgroundColor: context.appPrimaryDark,
           actions: [
             IconButton(
-              icon: const Icon(
-                Icons.notifications_outlined,
-                color: Colors.white,
-              ),
+              icon: const Icon(Icons.notifications_outlined, color: Colors.white),
               onPressed: () {},
+            ),
+            IconButton(
+              icon: const Icon(Icons.palette_outlined, color: Colors.white),
+              onPressed: showThemePicker,
+              tooltip: 'Theme',
             ),
             const SizedBox(width: 4),
           ],
@@ -250,9 +266,9 @@ class _TripsTab extends HookConsumerWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Header background widget — pure UI, stays StatelessWidget
-// ---------------------------------------------------------------------------
+// ─────────────────────────────────────────────────────────────────────────────
+// Header background widget
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _HeaderBackground extends StatelessWidget {
   final String greeting;
@@ -262,12 +278,12 @@ class _HeaderBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppColors.primaryDark,
-            AppColors.primary,
-            AppColors.primaryLight,
+            context.appPrimaryDark,
+            context.appPrimary,
+            context.appPrimaryLight,
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -344,6 +360,146 @@ class _HeaderBackground extends StatelessWidget {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Theme color picker bottom sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ThemePickerSheet extends ConsumerWidget {
+  const _ThemePickerSheet();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentColor = ref.watch(themeColorProvider);
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 12),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: AppColors.divider,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+            child: Row(
+              children: [
+                const Text(
+                  'App Theme',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: AppColors.textSecondary,
+                  ),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20),
+            child: Text(
+              'Choose a color to personalise your app',
+              style: TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: GridView.count(
+              crossAxisCount: 4,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              children: kThemePalette.map((theme) {
+                final isSelected = currentColor.value == theme.color.value;
+                return GestureDetector(
+                  onTap: () {
+                    ref
+                        .read(themeColorProvider.notifier)
+                        .setColor(theme.color);
+                    Navigator.of(context).pop();
+                  },
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          color: theme.color,
+                          shape: BoxShape.circle,
+                          border: isSelected
+                              ? Border.all(
+                                  color: AppColors.textPrimary,
+                                  width: 3,
+                                )
+                              : null,
+                          boxShadow: [
+                            BoxShadow(
+                              color: theme.color.withOpacity(0.4),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: isSelected
+                            ? const Icon(
+                                Icons.check_rounded,
+                                color: Colors.white,
+                                size: 26,
+                              )
+                            : null,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        theme.label,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.normal,
+                          color: isSelected
+                              ? AppColors.textPrimary
+                              : AppColors.textSecondary,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 32),
         ],
       ),
     );

@@ -22,13 +22,13 @@ class PlaceholderScreen extends StatelessWidget {
         SliverAppBar(
           expandedHeight: 120,
           pinned: true,
-          backgroundColor: AppColors.primaryDark,
+          backgroundColor: context.appPrimaryDark,
           flexibleSpace: FlexibleSpaceBar(
             collapseMode: CollapseMode.parallax,
             background: Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [AppColors.primaryDark, AppColors.primary],
+                  colors: [context.appPrimaryDark, context.appPrimary],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -69,10 +69,10 @@ class PlaceholderScreen extends StatelessWidget {
                     width: 96,
                     height: 96,
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.08),
+                      color: context.appPrimary.withOpacity(0.08),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(icon, size: 44, color: AppColors.primary),
+                    child: Icon(icon, size: 44, color: context.appPrimary),
                   ),
                   const SizedBox(height: 24),
                   Text(
@@ -100,13 +100,13 @@ class PlaceholderScreen extends StatelessWidget {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
+                      color: context.appPrimary.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Text(
+                    child: Text(
                       AppStrings.comingSoon,
                       style: TextStyle(
-                        color: AppColors.primary,
+                        color: context.appPrimary,
                         fontWeight: FontWeight.w700,
                         fontSize: 12,
                         letterSpacing: 0.5,

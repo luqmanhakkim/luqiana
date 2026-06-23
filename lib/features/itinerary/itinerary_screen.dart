@@ -5,6 +5,7 @@ import '../../config/theme.dart';
 import '../../constants/app_strings.dart';
 import '../../core/models/itinerary.dart';
 import '../../core/models/trip.dart';
+import '../../core/widgets/trip_selector.dart';
 import '../home/application/trips_notifier.dart';
 import 'application/itinerary_notifier.dart';
 
@@ -96,10 +97,10 @@ class ItineraryScreen extends HookConsumerWidget {
     return CustomScrollView(
       physics: const BouncingScrollPhysics(),
       slivers: [
-        _buildAppBar(trip, onAdd: onAddActivity),
+        _buildAppBar(context, trip, onAdd: onAddActivity),
         if (trips.length > 1)
           SliverToBoxAdapter(
-            child: _TripSelectorRow(
+            child: TripSelectorButton(
               trips: trips,
               selectedIndex: selectedTripIndex.value,
               onSelected: (i) => selectedTripIndex.value = i,
@@ -113,6 +114,7 @@ class ItineraryScreen extends HookConsumerWidget {
         else ...[
           SliverToBoxAdapter(
             child: _buildDayTabs(
+              context,
               days: days,
               selectedIndex: safeDay,
               onDaySelected: (i) => selectedDayIndex.value = i,
@@ -140,12 +142,13 @@ class ItineraryScreen extends HookConsumerWidget {
     );
   }
 
-  Widget _buildAppBar(Trip trip, {required VoidCallback? onAdd}) {
+  Widget _buildAppBar(BuildContext context, Trip trip,
+      {required VoidCallback? onAdd}) {
     return SliverAppBar(
       expandedHeight: 140,
       pinned: true,
       stretch: true,
-      backgroundColor: AppColors.primaryDark,
+      backgroundColor: context.appPrimaryDark,
       actions: [
         IconButton(
           icon: const Icon(Icons.add_rounded, color: Colors.white),
@@ -156,9 +159,9 @@ class ItineraryScreen extends HookConsumerWidget {
       flexibleSpace: FlexibleSpaceBar(
         collapseMode: CollapseMode.parallax,
         background: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [AppColors.primaryDark, AppColors.primary],
+              colors: [context.appPrimaryDark, context.appPrimary],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -207,7 +210,8 @@ class ItineraryScreen extends HookConsumerWidget {
     );
   }
 
-  Widget _buildDayTabs({
+  Widget _buildDayTabs(
+    BuildContext context, {
     required List<ItineraryDay> days,
     required int selectedIndex,
     required ValueChanged<int> onDaySelected,
@@ -242,11 +246,11 @@ class ItineraryScreen extends HookConsumerWidget {
                 ),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? AppColors.primary
+                      ? context.appPrimary
                       : AppColors.surfaceVariant,
                   borderRadius: BorderRadius.circular(12),
                   border: isToday && !isSelected
-                      ? Border.all(color: AppColors.primary, width: 1.5)
+                      ? Border.all(color: context.appPrimary, width: 1.5)
                       : null,
                 ),
                 child: Column(
@@ -279,7 +283,7 @@ class ItineraryScreen extends HookConsumerWidget {
                         width: 5,
                         height: 5,
                         decoration: BoxDecoration(
-                          color: isSelected ? Colors.white : AppColors.primary,
+                          color: isSelected ? Colors.white : context.appPrimary,
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -391,13 +395,17 @@ class _ActivityTile extends StatelessWidget {
                 width: 10,
                 height: 10,
                 decoration: BoxDecoration(
-                  color:
-                      activity.isDone ? AppColors.success : AppColors.primary,
+                  color: activity.isDone
+                      ? AppColors.success
+                      : Theme.of(context).colorScheme.primary,
                   shape: BoxShape.circle,
                   border: Border.all(
                     color: activity.isDone
                         ? AppColors.success
-                        : AppColors.primary.withOpacity(0.3),
+                        : Theme.of(context)
+                            .colorScheme
+                            .primary
+                            .withOpacity(0.3),
                     width: 2,
                   ),
                 ),
@@ -599,100 +607,6 @@ class _CategoryIcon extends StatelessWidget {
 // Trip selector row — shown when the user has more than one trip
 // ---------------------------------------------------------------------------
 
-class _TripSelectorRow extends StatelessWidget {
-  final List<Trip> trips;
-  final int selectedIndex;
-  final ValueChanged<int> onSelected;
-
-  const _TripSelectorRow({
-    required this.trips,
-    required this.selectedIndex,
-    required this.onSelected,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: AppColors.surface,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: List.generate(trips.length, (index) {
-            final t = trips[index];
-            final isSelected = index == selectedIndex;
-            final dotColor = AppColors
-                .tripGradients[t.gradientIndex % AppColors.tripGradients.length]
-                    [0];
-
-            return GestureDetector(
-              onTap: () => onSelected(index),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                margin: const EdgeInsets.only(right: 10),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? AppColors.primary
-                      : AppColors.surfaceVariant,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isSelected ? AppColors.primary : AppColors.divider,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: isSelected ? Colors.white70 : dotColor,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          t.name,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: isSelected
-                                ? Colors.white
-                                : AppColors.textPrimary,
-                          ),
-                        ),
-                        Text(
-                          t.destination,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: isSelected
-                                ? Colors.white70
-                                : AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }),
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-
 class _EmptyItinerary extends StatelessWidget {
   const _EmptyItinerary();
 
@@ -708,13 +622,13 @@ class _EmptyItinerary extends StatelessWidget {
               width: 96,
               height: 96,
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.08),
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.map_outlined,
                 size: 44,
-                color: AppColors.primary,
+                color: Theme.of(context).colorScheme.primary,
               ),
             ),
             const SizedBox(height: 24),
@@ -943,8 +857,8 @@ class _AddActivitySheet extends HookConsumerWidget {
                             const Spacer(),
                             Text(
                               formatDate(selectedDate.value),
-                              style: const TextStyle(
-                                color: AppColors.primary,
+                              style: TextStyle(
+                                color: context.appPrimary,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -991,8 +905,8 @@ class _AddActivitySheet extends HookConsumerWidget {
                             const Spacer(),
                             Text(
                               formatTime(selectedTime.value),
-                              style: const TextStyle(
-                                color: AppColors.primary,
+                              style: TextStyle(
+                                color: context.appPrimary,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -1015,6 +929,7 @@ class _AddActivitySheet extends HookConsumerWidget {
                       decoration: _inputDecoration(
                         'Activity Title',
                         Icons.title_rounded,
+                        context.appPrimary,
                       ),
                       validator: (v) =>
                           (v == null || v.trim().isEmpty) ? 'Required' : null,
@@ -1027,6 +942,7 @@ class _AddActivitySheet extends HookConsumerWidget {
                       decoration: _inputDecoration(
                         'Location',
                         Icons.location_on_outlined,
+                        context.appPrimary,
                       ),
                       validator: (v) =>
                           (v == null || v.trim().isEmpty) ? 'Required' : null,
@@ -1080,8 +996,8 @@ class _AddActivitySheet extends HookConsumerWidget {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: AppColors.primary,
+                          borderSide: BorderSide(
+                            color: context.appPrimary,
                             width: 2,
                           ),
                         ),
@@ -1095,7 +1011,7 @@ class _AddActivitySheet extends HookConsumerWidget {
                       child: ElevatedButton(
                         onPressed: submit,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
+                          backgroundColor: context.appPrimary,
                           foregroundColor: Colors.white,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
@@ -1121,7 +1037,8 @@ class _AddActivitySheet extends HookConsumerWidget {
     );
   }
 
-  static InputDecoration _inputDecoration(String hint, IconData icon) {
+  static InputDecoration _inputDecoration(
+      String hint, IconData icon, Color primary) {
     return InputDecoration(
       hintText: hint,
       hintStyle: const TextStyle(color: AppColors.textHint, fontSize: 14),
@@ -1139,7 +1056,7 @@ class _AddActivitySheet extends HookConsumerWidget {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.primary, width: 2),
+        borderSide: BorderSide(color: primary, width: 2),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),

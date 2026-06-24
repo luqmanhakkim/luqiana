@@ -51,13 +51,13 @@ class ChecklistScreen extends HookConsumerWidget {
       if (catItems.isNotEmpty) grouped[cat] = catItems;
     }
 
-    void showAddSheet() {
+    void showAddSheet({ChecklistItem? initial}) {
       showModalBottomSheet(
         context: context,
         isScrollControlled: true,
         useSafeArea: true,
         backgroundColor: Colors.transparent,
-        builder: (_) => _AddItemSheet(tripId: trip.id),
+        builder: (_) => _AddItemSheet(tripId: trip.id, initialItem: initial),
       );
     }
 
@@ -251,6 +251,7 @@ class ChecklistScreen extends HookConsumerWidget {
                         ref.read(checklistProvider.notifier).toggleItem(item.id),
                     onDelete: () =>
                         ref.read(checklistProvider.notifier).deleteItem(item.id),
+                    onEdit: () => showAddSheet(initial: item),
                   );
                 },
                 childCount: entry.value.length,
@@ -375,12 +376,14 @@ class _ChecklistItemTile extends StatelessWidget {
   final ChecklistItem item;
   final VoidCallback onToggle;
   final VoidCallback onDelete;
+  final VoidCallback onEdit;
 
   const _ChecklistItemTile({
     super.key,
     required this.item,
     required this.onToggle,
     required this.onDelete,
+    required this.onEdit,
   });
 
   @override
@@ -433,6 +436,7 @@ class _ChecklistItemTile extends StatelessWidget {
             child: InkWell(
               borderRadius: BorderRadius.circular(14),
               onTap: onToggle,
+              onLongPress: onEdit,
               child: Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
@@ -552,24 +556,37 @@ class _EmptyChecklist extends StatelessWidget {
 
 class _AddItemSheet extends HookConsumerWidget {
   final String tripId;
+  final ChecklistItem? initialItem;
 
-  const _AddItemSheet({required this.tripId});
+  const _AddItemSheet({required this.tripId, this.initialItem});
+
+  bool get _isEditing => initialItem != null;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final formKey = useMemoized(GlobalKey<FormState>.new);
-    final titleCtrl = useTextEditingController();
-    final selectedCategory = useState(ChecklistCategory.documents);
+    final titleCtrl =
+        useTextEditingController(text: initialItem?.title ?? '');
+    final selectedCategory =
+        useState(initialItem?.category ?? ChecklistCategory.documents);
 
     void submit() {
       if (!formKey.currentState!.validate()) return;
-      final item = ChecklistItem(
-        id: DateTime.now().microsecondsSinceEpoch.toString(),
-        tripId: tripId,
-        title: titleCtrl.text.trim(),
-        category: selectedCategory.value,
-      );
-      ref.read(checklistProvider.notifier).addItem(item);
+      if (_isEditing) {
+        final updated = initialItem!.copyWith(
+          title: titleCtrl.text.trim(),
+          category: selectedCategory.value,
+        );
+        ref.read(checklistProvider.notifier).updateItem(updated);
+      } else {
+        final item = ChecklistItem(
+          id: DateTime.now().microsecondsSinceEpoch.toString(),
+          tripId: tripId,
+          title: titleCtrl.text.trim(),
+          category: selectedCategory.value,
+        );
+        ref.read(checklistProvider.notifier).addItem(item);
+      }
       Navigator.of(context).pop();
     }
 
@@ -596,9 +613,9 @@ class _AddItemSheet extends HookConsumerWidget {
             padding: const EdgeInsets.fromLTRB(20, 12, 8, 0),
             child: Row(
               children: [
-                const Text(
-                  'Add to Packing List',
-                  style: TextStyle(
+                Text(
+                  _isEditing ? 'Edit Item' : 'Add to Packing List',
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: AppColors.textPrimary,
@@ -707,9 +724,9 @@ class _AddItemSheet extends HookConsumerWidget {
                             borderRadius: BorderRadius.circular(14),
                           ),
                         ),
-                        child: const Text(
-                          'Add to List',
-                          style: TextStyle(
+                        child: Text(
+                          _isEditing ? 'Save Changes' : 'Add to List',
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),

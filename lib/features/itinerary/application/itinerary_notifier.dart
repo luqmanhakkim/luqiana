@@ -93,6 +93,31 @@ class ItineraryNotifier extends Notifier<List<ItineraryDay>> {
     );
   }
 
+  void updateActivity({
+    required String tripId,
+    required DateTime date,
+    required ItineraryActivity activity,
+  }) {
+    final newState = [
+      for (final day in state)
+        if (day.tripId == tripId && _sameDate(day.date, date))
+          day.copyWith(
+            activities: [
+              for (final a in day.activities)
+                if (a.id == activity.id) activity else a,
+            ],
+          )
+        else
+          day,
+    ];
+    state = newState;
+    _persist(
+      newState.firstWhere(
+        (d) => d.tripId == tripId && _sameDate(d.date, date),
+      ),
+    );
+  }
+
   void deleteActivity({
     required String tripId,
     required DateTime date,
@@ -125,6 +150,14 @@ class ItineraryNotifier extends Notifier<List<ItineraryDay>> {
       state = newState;
       _persist(affected);
     }
+  }
+
+  void deleteAllForTrip(String tripId) {
+    final toDelete = state.where((d) => d.tripId == tripId).toList();
+    for (final day in toDelete) {
+      _remove(tripId, day.date);
+    }
+    state = state.where((d) => d.tripId != tripId).toList();
   }
 }
 

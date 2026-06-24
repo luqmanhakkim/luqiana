@@ -23,9 +23,22 @@ class ExpensesNotifier extends Notifier<List<Expense>> {
     state = [...state, expense];
   }
 
+  void updateExpense(Expense expense) {
+    _box.put(expense.id, expense.toJsonString());
+    state = [for (final e in state) if (e.id == expense.id) expense else e];
+  }
+
   void deleteExpense(String id) {
     _box.delete(id);
     state = state.where((e) => e.id != id).toList();
+  }
+
+  void deleteAllForTrip(String tripId) {
+    final toDelete = state.where((e) => e.tripId == tripId).toList();
+    for (final e in toDelete) {
+      _box.delete(e.id);
+    }
+    state = state.where((e) => e.tripId != tripId).toList();
   }
 }
 

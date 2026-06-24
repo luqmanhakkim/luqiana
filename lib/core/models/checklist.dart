@@ -25,11 +25,16 @@ class ChecklistItem {
     this.isChecked = false,
   });
 
-  ChecklistItem copyWith({bool? isChecked}) => ChecklistItem(
+  ChecklistItem copyWith({
+    String? title,
+    ChecklistCategory? category,
+    bool? isChecked,
+  }) =>
+      ChecklistItem(
         id: id,
         tripId: tripId,
-        title: title,
-        category: category,
+        title: title ?? this.title,
+        category: category ?? this.category,
         isChecked: isChecked ?? this.isChecked,
       );
 

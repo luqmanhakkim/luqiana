@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+import 'package:http/http.dart' as http;
 
 import '../../config/theme.dart';
 import '../../core/models/expense.dart';
@@ -9,6 +12,66 @@ import '../../core/models/trip.dart';
 import '../../core/widgets/trip_selector.dart';
 import '../home/application/trips_notifier.dart';
 import 'application/expenses_notifier.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Offline fallback exchange rates (relative to USD)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const _kFallbackRates = <String, double>{
+  'USD': 1.0,
+  'MYR': 4.47,
+  'SGD': 1.34,
+  'EUR': 0.92,
+  'GBP': 0.78,
+  'JPY': 148.0,
+  'AUD': 1.53,
+  'CAD': 1.36,
+  'CHF': 0.89,
+  'CNY': 7.25,
+  'HKD': 7.82,
+  'IDR': 15600.0,
+  'INR': 83.5,
+  'KRW': 1320.0,
+  'PHP': 56.5,
+  'THB': 35.5,
+  'TWD': 31.5,
+  'VND': 24500.0,
+  'AED': 3.67,
+  'SAR': 3.75,
+  'BRL': 5.05,
+  'NZD': 1.62,
+  'TRY': 32.0,
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Live exchange rate provider — fetches from Frankfurter, falls back offline
+// ─────────────────────────────────────────────────────────────────────────────
+
+final exchangeRatesProvider =
+    FutureProvider<({Map<String, double> rates, bool isLive, String? date})>(
+        (ref) async {
+  try {
+    final response = await http
+        .get(Uri.parse('https://api.frankfurter.app/latest?from=USD'))
+        .timeout(const Duration(seconds: 6));
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final rates = <String, double>{'USD': 1.0};
+      for (final e in (data['rates'] as Map).entries) {
+        rates[e.key as String] = (e.value as num).toDouble();
+      }
+      for (final e in _kFallbackRates.entries) {
+        rates.putIfAbsent(e.key, () => e.value);
+      }
+      return (rates: rates, isLive: true, date: data['date'] as String?);
+    }
+  } catch (_) {}
+  return (
+    rates: Map<String, double>.from(_kFallbackRates),
+    isLive: false,
+    date: null,
+  );
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Amount formatter helper
@@ -146,14 +209,27 @@ class ExpensesScreen extends HookConsumerWidget {
       grouped.putIfAbsent(_dateKey(e.date), () => []).add(e);
     }
 
-    void showAddSheet() {
+    void showAddSheet({Expense? initial}) {
       showModalBottomSheet(
         context: context,
         isScrollControlled: true,
         useSafeArea: true,
         backgroundColor: Colors.transparent,
-        builder: (_) =>
-            _AddExpenseSheet(tripId: trip.id, currency: trip.currency),
+        builder: (_) => _AddExpenseSheet(
+          tripId: trip.id,
+          currency: trip.currency,
+          initialExpense: initial,
+        ),
+      );
+    }
+
+    void showConverterSheet() {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => _CurrencyConverterSheet(tripCurrency: trip.currency),
       );
     }
 
@@ -168,8 +244,14 @@ class ExpensesScreen extends HookConsumerWidget {
           backgroundColor: context.appPrimaryDark,
           actions: [
             IconButton(
+              icon: const Icon(Icons.currency_exchange_rounded,
+                  color: Colors.white),
+              onPressed: showConverterSheet,
+              tooltip: 'Currency Converter',
+            ),
+            IconButton(
               icon: const Icon(Icons.add_rounded, color: Colors.white),
-              onPressed: showAddSheet,
+              onPressed: () => showAddSheet(),
             ),
             const SizedBox(width: 4),
           ],
@@ -418,6 +500,7 @@ class ExpensesScreen extends HookConsumerWidget {
                     onDelete: () => ref
                         .read(expensesProvider.notifier)
                         .deleteExpense(expense.id),
+                    onEdit: () => showAddSheet(initial: expense),
                   );
                 },
                 childCount: entry.value.length,
@@ -561,12 +644,14 @@ class _ExpenseTile extends StatelessWidget {
   final Expense expense;
   final String currency;
   final VoidCallback onDelete;
+  final VoidCallback onEdit;
 
   const _ExpenseTile({
     super.key,
     required this.expense,
     required this.currency,
     required this.onDelete,
+    required this.onEdit,
   });
 
   @override
@@ -604,7 +689,9 @@ class _ExpenseTile extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-        child: Container(
+        child: GestureDetector(
+          onLongPress: onEdit,
+          child: Container(
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(14),
@@ -680,6 +767,7 @@ class _ExpenseTile extends StatelessWidget {
             ),
           ),
         ),
+        ),
       ),
     );
   }
@@ -746,8 +834,13 @@ class _EmptyExpenses extends StatelessWidget {
 class _AddExpenseSheet extends HookConsumerWidget {
   final String tripId;
   final String currency;
+  final Expense? initialExpense;
 
-  const _AddExpenseSheet({required this.tripId, required this.currency});
+  const _AddExpenseSheet({
+    required this.tripId,
+    required this.currency,
+    this.initialExpense,
+  });
 
   static String _dateLabel(DateTime date) {
     final now = DateTime.now();
@@ -801,14 +894,26 @@ class _AddExpenseSheet extends HookConsumerWidget {
     );
   }
 
+  bool get _isEditing => initialExpense != null;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final formKey = useMemoized(GlobalKey<FormState>.new);
-    final amountCtrl = useTextEditingController();
-    final titleCtrl = useTextEditingController();
-    final noteCtrl = useTextEditingController();
-    final selectedCategory = useState(ExpenseCategory.food);
-    final selectedDate = useState(DateTime.now());
+    final amountCtrl = useTextEditingController(
+      text: initialExpense != null
+          ? initialExpense!.amount.toStringAsFixed(2)
+          : '',
+    );
+    final titleCtrl = useTextEditingController(
+      text: initialExpense?.title ?? '',
+    );
+    final noteCtrl = useTextEditingController(
+      text: initialExpense?.note ?? '',
+    );
+    final selectedCategory =
+        useState(initialExpense?.category ?? ExpenseCategory.food);
+    final selectedDate =
+        useState(initialExpense?.date ?? DateTime.now());
 
     Future<void> pickDate() async {
       final picked = await showDatePicker(
@@ -834,16 +939,27 @@ class _AddExpenseSheet extends HookConsumerWidget {
       final amount = double.tryParse(amountCtrl.text.trim());
       if (amount == null || amount <= 0) return;
 
-      final expense = Expense(
-        id: DateTime.now().microsecondsSinceEpoch.toString(),
-        tripId: tripId,
-        title: titleCtrl.text.trim(),
-        amount: amount,
-        category: selectedCategory.value,
-        date: selectedDate.value,
-        note: noteCtrl.text.trim(),
-      );
-      ref.read(expensesProvider.notifier).addExpense(expense);
+      if (_isEditing) {
+        final updated = initialExpense!.copyWith(
+          title: titleCtrl.text.trim(),
+          amount: amount,
+          category: selectedCategory.value,
+          date: selectedDate.value,
+          note: noteCtrl.text.trim(),
+        );
+        ref.read(expensesProvider.notifier).updateExpense(updated);
+      } else {
+        final expense = Expense(
+          id: DateTime.now().microsecondsSinceEpoch.toString(),
+          tripId: tripId,
+          title: titleCtrl.text.trim(),
+          amount: amount,
+          category: selectedCategory.value,
+          date: selectedDate.value,
+          note: noteCtrl.text.trim(),
+        );
+        ref.read(expensesProvider.notifier).addExpense(expense);
+      }
       Navigator.of(context).pop();
     }
 
@@ -870,9 +986,9 @@ class _AddExpenseSheet extends HookConsumerWidget {
             padding: const EdgeInsets.fromLTRB(20, 12, 8, 0),
             child: Row(
               children: [
-                const Text(
-                  'Add Expense',
-                  style: TextStyle(
+                Text(
+                  _isEditing ? 'Edit Expense' : 'Add Expense',
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: AppColors.textPrimary,
@@ -1075,9 +1191,9 @@ class _AddExpenseSheet extends HookConsumerWidget {
                             borderRadius: BorderRadius.circular(14),
                           ),
                         ),
-                        child: const Text(
-                          'Add Expense',
-                          style: TextStyle(
+                        child: Text(
+                          _isEditing ? 'Save Changes' : 'Add Expense',
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),
@@ -1086,6 +1202,409 @@ class _AddExpenseSheet extends HookConsumerWidget {
                     ),
                   ],
                 ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Currency converter bottom sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _CurrencyConverterSheet extends HookConsumerWidget {
+  final String tripCurrency;
+
+  const _CurrencyConverterSheet({required this.tripCurrency});
+
+  static double _convert(
+    Map<String, double> rates,
+    double amount,
+    String from,
+    String to,
+  ) {
+    final fromRate = rates[from] ?? 1.0;
+    final toRate = rates[to] ?? 1.0;
+    return amount / fromRate * toRate;
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Invalidate after first frame so every open triggers a fresh fetch
+    useEffect(() {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref.invalidate(exchangeRatesProvider);
+      });
+      return null;
+    }, []);
+
+    final ratesAsync = ref.watch(exchangeRatesProvider);
+
+    final rateData = ratesAsync.asData?.value;
+    final rates = rateData?.rates ?? _kFallbackRates;
+    final isLive = rateData?.isLive ?? false;
+    final rateDate = rateData?.date;
+    final isLoading = ratesAsync.isLoading;
+
+    final currencies = useMemoized(
+      () => rates.keys.toList()..sort(),
+      [rates],
+    );
+
+    final defaultTo =
+        rates.containsKey(tripCurrency) ? tripCurrency : 'MYR';
+
+    final amountCtrl = useTextEditingController();
+    final fromCurrency = useState('USD');
+    final toCurrency = useState(defaultTo);
+    final result = useState<double?>(null);
+
+    void compute() {
+      final amount = double.tryParse(amountCtrl.text.trim());
+      if (amount == null || amount <= 0) {
+        result.value = null;
+        return;
+      }
+      result.value = _convert(rates, amount, fromCurrency.value, toCurrency.value);
+    }
+
+    // Recompute when live rates arrive
+    useEffect(() {
+      if (ratesAsync.hasValue) compute();
+      return null;
+    }, [ratesAsync]);
+
+    Widget currencyDropdown(String value, ValueChanged<String> onChanged) {
+      final safeValue = currencies.contains(value) ? value : currencies.first;
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceVariant,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.divider),
+        ),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            value: safeValue,
+            isExpanded: true,
+            items: currencies
+                .map((c) => DropdownMenuItem(
+                      value: c,
+                      child: Text(
+                        c,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ))
+                .toList(),
+            onChanged: (v) {
+              if (v != null) {
+                onChanged(v);
+                compute();
+              }
+            },
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 12),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: AppColors.divider,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 8, 0),
+            child: Row(
+              children: [
+                const Text(
+                  'Currency Converter',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                if (isLoading)
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else if (isLive)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            color: Colors.green,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Live${rateDate != null ? ' · $rateDate' : ''}',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.green,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.wifi_off_rounded,
+                            size: 11, color: Colors.orange),
+                        SizedBox(width: 4),
+                        Text(
+                          'Offline rates',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.orange,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded,
+                      color: AppColors.textSecondary),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+          ),
+          Flexible(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                8,
+                20,
+                MediaQuery.of(context).viewInsets.bottom + 28,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextFormField(
+                    controller: amountCtrl,
+                    autofocus: true,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                    ],
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: '0.00',
+                      hintStyle: const TextStyle(
+                        color: AppColors.textHint,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      filled: true,
+                      fillColor: AppColors.surfaceVariant,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 16),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.divider),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppColors.divider),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide:
+                            BorderSide(color: context.appPrimary, width: 2),
+                      ),
+                    ),
+                    onChanged: (_) => compute(),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'From',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            currencyDropdown(
+                              fromCurrency.value,
+                              (v) => fromCurrency.value = v,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      GestureDetector(
+                        onTap: () {
+                          final tmp = fromCurrency.value;
+                          fromCurrency.value = toCurrency.value;
+                          toCurrency.value = tmp;
+                          compute();
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.only(top: 20),
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: context.appPrimary.withOpacity(0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.swap_horiz_rounded,
+                            color: context.appPrimary,
+                            size: 22,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'To',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            currencyDropdown(
+                              toCurrency.value,
+                              (v) => toCurrency.value = v,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  if (result.value != null)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: context.appPrimary.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                            color: context.appPrimary.withOpacity(0.2)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${amountCtrl.text} ${fromCurrency.value} =',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            '${_fmtAmount(result.value!)} ${toCurrency.value}',
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: context.appPrimary,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Rate: 1 ${fromCurrency.value} = ${_fmtAmount(_convert(rates, 1, fromCurrency.value, toCurrency.value))} ${toCurrency.value}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textHint,
+                            ),
+                          ),
+                          if (!isLive) ...[
+                            const SizedBox(height: 4),
+                            const Text(
+                              '* No internet — using approximate offline rates',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.orange,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    )
+                  else
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceVariant,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Text(
+                        isLoading
+                            ? 'Fetching live rates...'
+                            : 'Enter an amount to convert',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textHint,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                ],
               ),
             ),
           ),

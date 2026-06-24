@@ -78,8 +78,9 @@ class ItineraryScreen extends HookConsumerWidget {
       );
     }
 
-    void onAddActivity() {
-      final initialDate = days.isNotEmpty ? days[safeDay].date : trip.startDate;
+    void onAddActivity({ItineraryActivity? initial, DateTime? forDate}) {
+      final initialDate =
+          forDate ?? (days.isNotEmpty ? days[safeDay].date : trip.startDate);
       showModalBottomSheet(
         context: context,
         isScrollControlled: true,
@@ -90,6 +91,7 @@ class ItineraryScreen extends HookConsumerWidget {
           initialDate: initialDate,
           tripStart: trip.startDate,
           tripEnd: trip.endDate,
+          initialActivity: initial,
         ),
       );
     }
@@ -133,6 +135,10 @@ class ItineraryScreen extends HookConsumerWidget {
                           date: days[safeDay].date,
                           activityId: activityId,
                         ),
+                onEdit: (activity) => onAddActivity(
+                  initial: activity,
+                  forDate: days[safeDay].date,
+                ),
               ),
             ),
           ),
@@ -302,6 +308,7 @@ class ItineraryScreen extends HookConsumerWidget {
     required ItineraryDay day,
     required ValueChanged<String> onToggle,
     required ValueChanged<String> onDelete,
+    required ValueChanged<ItineraryActivity> onEdit,
   }) {
     if (day.activities.isEmpty) return const _EmptyDay();
 
@@ -314,6 +321,7 @@ class ItineraryScreen extends HookConsumerWidget {
           isLast: index == day.activities.length - 1,
           onToggle: () => onToggle(activity.id),
           onDelete: () => onDelete(activity.id),
+          onEdit: () => onEdit(activity),
         );
       }),
     );
@@ -329,6 +337,7 @@ class _ActivityTile extends StatelessWidget {
   final bool isLast;
   final VoidCallback onToggle;
   final VoidCallback onDelete;
+  final VoidCallback onEdit;
 
   const _ActivityTile({
     super.key,
@@ -336,6 +345,7 @@ class _ActivityTile extends StatelessWidget {
     required this.isLast,
     required this.onToggle,
     required this.onDelete,
+    required this.onEdit,
   });
 
   @override
@@ -441,6 +451,7 @@ class _ActivityTile extends StatelessWidget {
                 child: InkWell(
                   borderRadius: BorderRadius.circular(14),
                   onTap: onToggle,
+                  onLongPress: onEdit,
                   child: Padding(
                     padding: const EdgeInsets.all(14),
                     child: Row(
@@ -698,24 +709,43 @@ class _AddActivitySheet extends HookConsumerWidget {
   final DateTime initialDate;
   final DateTime tripStart;
   final DateTime tripEnd;
+  final ItineraryActivity? initialActivity;
 
   const _AddActivitySheet({
     required this.tripId,
     required this.initialDate,
     required this.tripStart,
     required this.tripEnd,
+    this.initialActivity,
   });
+
+  bool get _isEditing => initialActivity != null;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final formKey = useMemoized(GlobalKey<FormState>.new);
-    final titleCtrl = useTextEditingController();
-    final locationCtrl = useTextEditingController();
-    final notesCtrl = useTextEditingController();
+    final titleCtrl = useTextEditingController(
+      text: initialActivity?.title ?? '',
+    );
+    final locationCtrl = useTextEditingController(
+      text: initialActivity?.location ?? '',
+    );
+    final notesCtrl = useTextEditingController(
+      text: initialActivity?.notes ?? '',
+    );
     final now = TimeOfDay.now();
-    final selectedTime = useState(TimeOfDay(hour: now.hour, minute: 0));
+    TimeOfDay _parseTime(String t) {
+      final parts = t.split(':');
+      return TimeOfDay(
+          hour: int.parse(parts[0]), minute: int.parse(parts[1]));
+    }
+
+    final selectedTime = useState(initialActivity != null
+        ? _parseTime(initialActivity!.time)
+        : TimeOfDay(hour: now.hour, minute: 0));
     final selectedDate = useState(initialDate);
-    final selectedCategory = useState(ActivityCategory.sightseeing);
+    final selectedCategory =
+        useState(initialActivity?.category ?? ActivityCategory.sightseeing);
 
     String formatTime(TimeOfDay t) =>
         '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
@@ -753,19 +783,35 @@ class _AddActivitySheet extends HookConsumerWidget {
     void submit() {
       if (!formKey.currentState!.validate()) return;
       final notesText = notesCtrl.text.trim();
-      final activity = ItineraryActivity(
-        id: DateTime.now().microsecondsSinceEpoch.toString(),
-        time: formatTime(selectedTime.value),
-        title: titleCtrl.text.trim(),
-        location: locationCtrl.text.trim(),
-        category: selectedCategory.value,
-        notes: notesText.isEmpty ? null : notesText,
-      );
-      ref.read(itineraryProvider.notifier).addActivity(
-            tripId: tripId,
-            date: selectedDate.value,
-            activity: activity,
-          );
+      if (_isEditing) {
+        final updated = initialActivity!.copyWith(
+          time: formatTime(selectedTime.value),
+          title: titleCtrl.text.trim(),
+          location: locationCtrl.text.trim(),
+          category: selectedCategory.value,
+          notes: notesText.isEmpty ? null : notesText,
+          clearNotes: notesText.isEmpty,
+        );
+        ref.read(itineraryProvider.notifier).updateActivity(
+              tripId: tripId,
+              date: selectedDate.value,
+              activity: updated,
+            );
+      } else {
+        final activity = ItineraryActivity(
+          id: DateTime.now().microsecondsSinceEpoch.toString(),
+          time: formatTime(selectedTime.value),
+          title: titleCtrl.text.trim(),
+          location: locationCtrl.text.trim(),
+          category: selectedCategory.value,
+          notes: notesText.isEmpty ? null : notesText,
+        );
+        ref.read(itineraryProvider.notifier).addActivity(
+              tripId: tripId,
+              date: selectedDate.value,
+              activity: activity,
+            );
+      }
       Navigator.of(context).pop();
     }
 
@@ -793,9 +839,9 @@ class _AddActivitySheet extends HookConsumerWidget {
             padding: const EdgeInsets.fromLTRB(20, 8, 8, 0),
             child: Row(
               children: [
-                const Text(
-                  'Add Activity',
-                  style: TextStyle(
+                Text(
+                  _isEditing ? 'Edit Activity' : 'Add Activity',
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: AppColors.textPrimary,
@@ -1018,9 +1064,9 @@ class _AddActivitySheet extends HookConsumerWidget {
                             borderRadius: BorderRadius.circular(14),
                           ),
                         ),
-                        child: const Text(
-                          'Add Activity',
-                          style: TextStyle(
+                        child: Text(
+                          _isEditing ? 'Save Changes' : 'Add Activity',
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),

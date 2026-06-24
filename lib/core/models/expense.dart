@@ -44,6 +44,23 @@ class Expense {
         note: json['note'] as String? ?? '',
       );
 
+  Expense copyWith({
+    String? title,
+    double? amount,
+    ExpenseCategory? category,
+    DateTime? date,
+    String? note,
+  }) =>
+      Expense(
+        id: id,
+        tripId: tripId,
+        title: title ?? this.title,
+        amount: amount ?? this.amount,
+        category: category ?? this.category,
+        date: date ?? this.date,
+        note: note ?? this.note,
+      );
+
   String toJsonString() => jsonEncode(toJson());
 
   factory Expense.fromJsonString(String raw) =>

@@ -32,9 +32,22 @@ class ChecklistNotifier extends Notifier<List<ChecklistItem>> {
     _box.put(updated.id, updated.toJsonString());
   }
 
+  void updateItem(ChecklistItem item) {
+    _box.put(item.id, item.toJsonString());
+    state = [for (final i in state) if (i.id == item.id) item else i];
+  }
+
   void deleteItem(String id) {
     _box.delete(id);
     state = state.where((i) => i.id != id).toList();
+  }
+
+  void deleteAllForTrip(String tripId) {
+    final toDelete = state.where((i) => i.tripId == tripId).toList();
+    for (final i in toDelete) {
+      _box.delete(i.id);
+    }
+    state = state.where((i) => i.tripId != tripId).toList();
   }
 }
 

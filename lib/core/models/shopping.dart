@@ -29,13 +29,22 @@ class ShoppingItem {
     this.isPurchased = false,
   });
 
-  ShoppingItem copyWith({bool? isPurchased}) => ShoppingItem(
+  ShoppingItem copyWith({
+    String? name,
+    int? quantity,
+    double? estimatedPrice,
+    bool clearPrice = false,
+    ShoppingCategory? category,
+    bool? isPurchased,
+  }) =>
+      ShoppingItem(
         id: id,
         tripId: tripId,
-        name: name,
-        quantity: quantity,
-        estimatedPrice: estimatedPrice,
-        category: category,
+        name: name ?? this.name,
+        quantity: quantity ?? this.quantity,
+        estimatedPrice:
+            clearPrice ? null : (estimatedPrice ?? this.estimatedPrice),
+        category: category ?? this.category,
         isPurchased: isPurchased ?? this.isPurchased,
       );
 

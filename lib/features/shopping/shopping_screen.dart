@@ -62,13 +62,13 @@ class ShoppingScreen extends HookConsumerWidget {
       if (catItems.isNotEmpty) grouped[cat] = catItems;
     }
 
-    void showAddSheet() {
+    void showAddSheet({ShoppingItem? initial}) {
       showModalBottomSheet(
         context: context,
         isScrollControlled: true,
         useSafeArea: true,
         backgroundColor: Colors.transparent,
-        builder: (_) => _AddItemSheet(tripId: trip.id),
+        builder: (_) => _AddItemSheet(tripId: trip.id, initialItem: initial),
       );
     }
 
@@ -287,6 +287,7 @@ class ShoppingScreen extends HookConsumerWidget {
                     onDelete: () => ref
                         .read(shoppingProvider.notifier)
                         .deleteItem(item.id),
+                    onEdit: () => showAddSheet(initial: item),
                   );
                 },
                 childCount: entry.value.length,
@@ -464,6 +465,7 @@ class _ShoppingItemTile extends StatelessWidget {
   final String currency;
   final VoidCallback onToggle;
   final VoidCallback onDelete;
+  final VoidCallback onEdit;
 
   const _ShoppingItemTile({
     super.key,
@@ -471,6 +473,7 @@ class _ShoppingItemTile extends StatelessWidget {
     required this.currency,
     required this.onToggle,
     required this.onDelete,
+    required this.onEdit,
   });
 
   @override
@@ -523,6 +526,7 @@ class _ShoppingItemTile extends StatelessWidget {
             child: InkWell(
               borderRadius: BorderRadius.circular(14),
               onTap: onToggle,
+              onLongPress: onEdit,
               child: Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
@@ -687,30 +691,50 @@ class _EmptyShopping extends StatelessWidget {
 
 class _AddItemSheet extends HookConsumerWidget {
   final String tripId;
+  final ShoppingItem? initialItem;
 
-  const _AddItemSheet({required this.tripId});
+  const _AddItemSheet({required this.tripId, this.initialItem});
+
+  bool get _isEditing => initialItem != null;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final formKey = useMemoized(GlobalKey<FormState>.new);
-    final nameCtrl = useTextEditingController();
-    final priceCtrl = useTextEditingController();
-    final quantity = useState(1);
-    final selectedCategory = useState(ShoppingCategory.clothing);
+    final nameCtrl =
+        useTextEditingController(text: initialItem?.name ?? '');
+    final priceCtrl = useTextEditingController(
+      text: initialItem?.estimatedPrice?.toStringAsFixed(2) ?? '',
+    );
+    final quantity = useState(initialItem?.quantity ?? 1);
+    final selectedCategory =
+        useState(initialItem?.category ?? ShoppingCategory.clothing);
 
     void submit() {
       if (!formKey.currentState!.validate()) return;
       final priceText = priceCtrl.text.trim();
-      final item = ShoppingItem(
-        id: DateTime.now().microsecondsSinceEpoch.toString(),
-        tripId: tripId,
-        name: nameCtrl.text.trim(),
-        quantity: quantity.value,
-        estimatedPrice:
-            priceText.isEmpty ? null : double.tryParse(priceText),
-        category: selectedCategory.value,
-      );
-      ref.read(shoppingProvider.notifier).addItem(item);
+      final price = priceText.isEmpty ? null : double.tryParse(priceText);
+      if (_isEditing) {
+        final updated = ShoppingItem(
+          id: initialItem!.id,
+          tripId: initialItem!.tripId,
+          name: nameCtrl.text.trim(),
+          quantity: quantity.value,
+          estimatedPrice: price,
+          category: selectedCategory.value,
+          isPurchased: initialItem!.isPurchased,
+        );
+        ref.read(shoppingProvider.notifier).updateItem(updated);
+      } else {
+        final item = ShoppingItem(
+          id: DateTime.now().microsecondsSinceEpoch.toString(),
+          tripId: tripId,
+          name: nameCtrl.text.trim(),
+          quantity: quantity.value,
+          estimatedPrice: price,
+          category: selectedCategory.value,
+        );
+        ref.read(shoppingProvider.notifier).addItem(item);
+      }
       Navigator.of(context).pop();
     }
 
@@ -737,9 +761,9 @@ class _AddItemSheet extends HookConsumerWidget {
             padding: const EdgeInsets.fromLTRB(20, 12, 8, 0),
             child: Row(
               children: [
-                const Text(
-                  'Add to Shopping List',
-                  style: TextStyle(
+                Text(
+                  _isEditing ? 'Edit Item' : 'Add to Shopping List',
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: AppColors.textPrimary,
@@ -909,9 +933,9 @@ class _AddItemSheet extends HookConsumerWidget {
                             borderRadius: BorderRadius.circular(14),
                           ),
                         ),
-                        child: const Text(
-                          'Add to List',
-                          style: TextStyle(
+                        child: Text(
+                          _isEditing ? 'Save Changes' : 'Add to List',
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                           ),

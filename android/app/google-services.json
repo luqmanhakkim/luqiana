@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1030759539537",
+    "project_id": "luqiana",
+    "storage_bucket": "luqiana.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1030759539537:android:5fc27b6af2f786120da970",
+        "android_client_info": {
+          "package_name": "my.luqiana.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDVLPH21vuOFVRajBnSQma_5rGsS1_y-D4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

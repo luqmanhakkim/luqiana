@@ -11,6 +11,12 @@ import '../../../core/data/location_data.dart';
 import '../../../core/models/trip.dart';
 import '../application/trips_notifier.dart';
 
+const _currencies = [
+  'MYR', 'SGD', 'USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF',
+  'CNY', 'HKD', 'IDR', 'INR', 'KRW', 'PHP', 'THB', 'TWD', 'VND',
+  'AED', 'SAR', 'BRL', 'NZD', 'TRY',
+];
+
 class CreateTripSheet extends HookConsumerWidget {
   final Trip? existingTrip;
 
@@ -46,8 +52,15 @@ class CreateTripSheet extends HookConsumerWidget {
         useTextEditingController(text: existingTrip?.destination ?? '');
     final countryController =
         useTextEditingController(text: initialCountryText);
+    final budgetController = useTextEditingController(
+      text: (existingTrip?.budget ?? 0) > 0
+          ? existingTrip!.budget.toStringAsFixed(2)
+          : '',
+    );
 
     final selectedCountry = useState<CountryData?>(initialCountry);
+    final selectedCurrency =
+        useState<String>(existingTrip?.currency ?? 'MYR');
 
     final startDate = useState<DateTime?>(existingTrip?.startDate);
     final endDate = useState<DateTime?>(existingTrip?.endDate);
@@ -152,6 +165,9 @@ class CreateTripSheet extends HookConsumerWidget {
       final destination = destController.text.trim();
       final country =
           selectedCountry.value?.name ?? countryController.text.trim();
+      final budget =
+          double.tryParse(budgetController.text.trim()) ?? 0.0;
+      final currency = selectedCurrency.value;
 
       if (_isEditing) {
         final updated = existingTrip!.copyWith(
@@ -160,6 +176,8 @@ class CreateTripSheet extends HookConsumerWidget {
           country: country,
           startDate: startDate.value,
           endDate: endDate.value,
+          budget: budget,
+          currency: currency,
         );
         ref.read(tripsProvider.notifier).updateTrip(updated);
       } else {
@@ -170,6 +188,8 @@ class CreateTripSheet extends HookConsumerWidget {
           country: country,
           startDate: startDate.value!,
           endDate: endDate.value!,
+          budget: budget,
+          currency: currency,
           gradientIndex: Random().nextInt(AppColors.tripGradients.length),
         );
         ref.read(tripsProvider.notifier).addTrip(newTrip);
@@ -335,6 +355,112 @@ class CreateTripSheet extends HookConsumerWidget {
                             ),
                           ),
                         ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Budget & Currency (optional)',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: TextFormField(
+                              controller: budgetController,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                decimal: true,
+                              ),
+                              inputFormatters: [
+                                FilteringTextInputFormatter.allow(
+                                  RegExp(r'[0-9.]'),
+                                ),
+                              ],
+                              decoration: InputDecoration(
+                                hintText: '0.00',
+                                hintStyle: const TextStyle(
+                                  color: AppColors.textHint,
+                                ),
+                                prefixIcon: const Icon(
+                                  Icons.account_balance_wallet_outlined,
+                                  color: AppColors.textSecondary,
+                                  size: 20,
+                                ),
+                                filled: true,
+                                fillColor: AppColors.surface,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 14,
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(
+                                      color: AppColors.divider),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(
+                                      color: AppColors.divider),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .primary,
+                                    width: 2,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            flex: 2,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: AppColors.surface,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AppColors.divider),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String>(
+                                  value: selectedCurrency.value,
+                                  isExpanded: true,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                  items: _currencies
+                                      .map(
+                                        (c) => DropdownMenuItem(
+                                          value: c,
+                                          child: Text(
+                                            c,
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                      .toList(),
+                                  onChanged: (v) {
+                                    if (v != null) {
+                                      selectedCurrency.value = v;
+                                    }
+                                  },
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 32),
                       ElevatedButton(
                         onPressed: submit,

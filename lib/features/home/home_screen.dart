@@ -6,10 +6,12 @@ import '../../constants/app_strings.dart';
 import '../../core/models/trip.dart';
 import '../../core/providers/theme_provider.dart';
 import '../checklist/checklist_screen.dart';
+import '../documents/documents_screen.dart';
 import '../expenses/expenses_screen.dart';
 import '../itinerary/itinerary_screen.dart';
 import '../shopping/shopping_screen.dart';
 import 'application/trips_notifier.dart';
+import 'trip_summary_screen.dart';
 import 'widgets/create_trip_sheet.dart';
 import 'widgets/empty_trips_state.dart';
 import 'widgets/featured_trip_banner.dart';
@@ -34,6 +36,7 @@ class HomeScreen extends HookConsumerWidget {
           ChecklistScreen(),
           ShoppingScreen(),
           ItineraryScreen(),
+          DocumentsScreen(),
         ],
       ),
       bottomNavigationBar: _BottomNav(
@@ -95,6 +98,11 @@ class _BottomNav extends StatelessWidget {
           icon: Icon(Icons.map_outlined),
           activeIcon: Icon(Icons.map_rounded),
           label: AppStrings.navItinerary,
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.folder_outlined),
+          activeIcon: Icon(Icons.folder_rounded),
+          label: AppStrings.navDocuments,
         ),
       ],
     );
@@ -166,6 +174,33 @@ class _TripsTab extends HookConsumerWidget {
       );
     }
 
+    void showAllTrips(List<Trip> tripList, String title) {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => _AllTripsSheet(trips: tripList, title: title),
+      );
+    }
+
+    void openSummary(Trip t) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => TripSummaryScreen(trip: t),
+        ),
+      );
+    }
+
+    const int previewCount = 3;
+    final showAllUpcoming = upcomingTrips.length > previewCount;
+    final showAllPast = pastTrips.length > previewCount;
+    final previewUpcoming = showAllUpcoming
+        ? upcomingTrips.take(previewCount).toList()
+        : upcomingTrips;
+    final previewPast =
+        showAllPast ? pastTrips.take(previewCount).toList() : pastTrips;
+
     return CustomScrollView(
       physics: const BouncingScrollPhysics(),
       slivers: [
@@ -212,7 +247,10 @@ class _TripsTab extends HookConsumerWidget {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-              child: FeaturedTripBanner(trip: ongoingTrip),
+              child: GestureDetector(
+                onTap: () => openSummary(ongoingTrip),
+                child: FeaturedTripBanner(trip: ongoingTrip),
+              ),
             ),
           ),
         ],
@@ -222,8 +260,9 @@ class _TripsTab extends HookConsumerWidget {
               padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
               child: SectionHeader(
                 title: AppStrings.sectionUpcoming,
-                showSeeAll: true,
-                onSeeAll: () {},
+                showSeeAll: showAllUpcoming,
+                onSeeAll: () =>
+                    showAllTrips(upcomingTrips, AppStrings.sectionUpcoming),
               ),
             ),
           ),
@@ -231,8 +270,11 @@ class _TripsTab extends HookConsumerWidget {
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
             sliver: SliverList(
               delegate: SliverChildBuilderDelegate(
-                (context, index) => TripCard(trip: upcomingTrips[index]),
-                childCount: upcomingTrips.length,
+                (context, index) => TripCard(
+                  trip: previewUpcoming[index],
+                  onTap: () => openSummary(previewUpcoming[index]),
+                ),
+                childCount: previewUpcoming.length,
               ),
             ),
           ),
@@ -243,8 +285,9 @@ class _TripsTab extends HookConsumerWidget {
               padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
               child: SectionHeader(
                 title: AppStrings.sectionPast,
-                showSeeAll: true,
-                onSeeAll: () {},
+                showSeeAll: showAllPast,
+                onSeeAll: () =>
+                    showAllTrips(pastTrips, AppStrings.sectionPast),
               ),
             ),
           ),
@@ -252,8 +295,11 @@ class _TripsTab extends HookConsumerWidget {
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
             sliver: SliverList(
               delegate: SliverChildBuilderDelegate(
-                (context, index) => TripCard(trip: pastTrips[index]),
-                childCount: pastTrips.length,
+                (context, index) => TripCard(
+                  trip: previewPast[index],
+                  onTap: () => openSummary(previewPast[index]),
+                ),
+                childCount: previewPast.length,
               ),
             ),
           ),
@@ -262,6 +308,83 @@ class _TripsTab extends HookConsumerWidget {
           const SliverToBoxAdapter(child: EmptyTripsState()),
         const SliverToBoxAdapter(child: SizedBox(height: 100)),
       ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// "See all" trips bottom sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _AllTripsSheet extends StatelessWidget {
+  final List<Trip> trips;
+  final String title;
+
+  const _AllTripsSheet({required this.trips, required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 12),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: AppColors.divider,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 8, 8),
+            child: Row(
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded,
+                      color: AppColors.textSecondary),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+          ),
+          Flexible(
+            child: ListView.builder(
+              shrinkWrap: true,
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+              itemCount: trips.length,
+              itemBuilder: (context, index) {
+                final trip = trips[index];
+                return TripCard(
+                  trip: trip,
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => TripSummaryScreen(trip: trip),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

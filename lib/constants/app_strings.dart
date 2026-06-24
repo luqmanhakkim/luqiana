@@ -15,6 +15,7 @@ class AppStrings {
   static const String navChecklist = 'Checklist';
   static const String navShopping = 'Shopping';
   static const String navItinerary = 'Itinerary';
+  static const String navDocuments = 'Docs';
 
   static const String sectionOngoing = 'Ongoing Trip';
   static const String sectionUpcoming = 'Upcoming Trips';

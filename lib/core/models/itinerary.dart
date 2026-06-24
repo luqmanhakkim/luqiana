@@ -21,14 +21,22 @@ class ItineraryActivity {
     this.isDone = false,
   });
 
-  ItineraryActivity copyWith({bool? isDone}) {
+  ItineraryActivity copyWith({
+    String? time,
+    String? title,
+    String? location,
+    ActivityCategory? category,
+    String? notes,
+    bool clearNotes = false,
+    bool? isDone,
+  }) {
     return ItineraryActivity(
       id: id,
-      time: time,
-      title: title,
-      location: location,
-      category: category,
-      notes: notes,
+      time: time ?? this.time,
+      title: title ?? this.title,
+      location: location ?? this.location,
+      category: category ?? this.category,
+      notes: clearNotes ? null : (notes ?? this.notes),
       isDone: isDone ?? this.isDone,
     );
   }
